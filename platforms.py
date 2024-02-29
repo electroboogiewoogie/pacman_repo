@@ -4,7 +4,7 @@ import sys
 import pygame
 
 TIMER_EVENT_TYPE = 30
-WINDOW_WIDTH, WINDOW_HEIGHT = 800, 600
+WINDOW_WIDTH, WINDOW_HEIGHT = 600, 600
 size = WINDOW_WIDTH, WINDOW_HEIGHT
 
 
@@ -72,7 +72,7 @@ class Pacman(pygame.sprite.Sprite):
         self.rect.x += x
         self.rect.y += y
 
-        self.Num_Image = (self.Num_Image + 1) % 4
+        self.Num_Image = (self.Num_Image + 1) % 4  # открывание и закрывание рта пакмэна
         im = [
             Pacman.image_1,
             Pacman.image_eat,
@@ -84,42 +84,62 @@ class Pacman(pygame.sprite.Sprite):
 
         self.image = pygame.transform.rotate(tempImage, self.ROTATION)
 
-    def check_babah(self, B):
-        for b in B:
+    def check_babah(self, lst_sprites):
+        a = []
+        for II, b in enumerate(lst_sprites):
+            # if II == 0:
+            #     continue
             b = b.rect
-            raz = self.rect.x + self.rect.width - b.x
 
-        return False
+            def check(a, b, trace):
+                PXS = a.x + trace[0]
+                PXE = a.x + a.width + trace[0]
+                PYS = a.y + trace[1]
+                PYE = a.y + a.height + + trace[1]
+                BXS = b.x + trace[2]
+                BXE = b.x + b.width + trace[2]
+                BYS = b.y + trace[3]
+                BYE = b.y + b.height + + trace[3]
+                checkPacmenLeft = (PXS >= BXS and PXS <= BXE)
+                checkPacmenRight = (PXE >= BXS and PXE <= BXE)
+                checkPacmenUP = (PYS >= BYS and PYS <= BYE)
+                checkPacmenDown = (PYE >= BYS and PYE <= BYE)
+
+                return (checkPacmenLeft or checkPacmenRight) and (checkPacmenUP or checkPacmenDown)
+
+            a.append(check(self.rect, b, [trace[0], trace[1], 0, 0]) or check(b, self.rect, [0, 0, trace[0], trace[1]]))
+        b = any(a)
+        return b
 
     def update(self):
         a = horizontal_borders.sprites()[1].rect
         selfPoz = self.rect
         raz = selfPoz.x + selfPoz.width - a.x
-        print(raz)
+        # print(raz)
         # if pygame.sprite.spritecollideany(self, horizontal_borders):
         # tempself=copy.deepcopy(self)
         # tempself.move(trace[0], trace[1])
         # if pygame.sprite.spritecollideany(self, horizontal_borders):
         if self.check_babah(list(horizontal_borders.sprites())):
-            print(f"корд пак: {selfPoz} | корд ст: {a}")
-            self.move(-raz, 0)
-            self.eating = False
-            return True
-        elif pygame.sprite.spritecollideany(self, vertical_borders):
+            # print(f"корд пак: {selfPoz} | корд ст: {a}")
             self.move(0, 0)
             self.eating = False
             return True
-        else:
-            self.move(trace[0], trace[1])
-            self.eating = True
-        if pygame.sprite.spritecollideany(self, vertical_borders):
+        # elif pygame.sprite.spritecollideany(self, vertical_borders):
+        #     self.move(0, 0)
+        #     self.eating = False
+        #     return True
+        # else:
+        #     self.move(trace[0], trace[1])
+        #     self.eating = True
+        elif self.check_babah(list(vertical_borders.sprites())):
             self.move(0, 0)
             self.eating = False
             return True
-        elif pygame.sprite.spritecollideany(self, horizontal_borders):
-            self.move(0, 0)
-            self.eating = False
-            return True
+            # elif pygame.sprite.spritecollideany(self, horizontal_borders):
+            #     self.move(0, 0)
+            #     self.eating = False
+            #     return True
         else:
             self.move(trace[0], trace[1])
             self.eating = True
@@ -157,16 +177,16 @@ class Border(pygame.sprite.Sprite):
         # self.image.fill((125, 125, 125))
         # self.rect = pygame.Rect(x1, y1, 50, 10)
         super().__init__(all_sprites)
-        if x1 == x2:  # вертикальная стенка
-            self.add(vertical_borders)
-            self.image = pygame.Surface([50, 10])
-            self.image.fill((125, 125, 125))
-            self.rect = pygame.Rect(x1, y1, 50, 10)
-        else:  # горизонтальная стенка
-            self.add(horizontal_borders)
-            self.image = pygame.Surface([10, 50])
-            self.image.fill((125, 125, 125))
-            self.rect = pygame.Rect(x1, y1, 10, 50)
+        # if x1 == x2:  # вертикальная стенка
+        #     self.add(vertical_borders)
+        #     self.image = pygame.Surface([100, 10])
+        #     self.image.fill((125, 125, 125))
+        #     self.rect = pygame.Rect(x1, y1, 100, 10)
+        # else:  # горизонтальная стенка
+        self.add(horizontal_borders)
+        self.image = pygame.Surface([x2, y2])
+        self.image.fill((125, 125, 125))
+        self.rect = pygame.Rect(x1, y1, x2, y2)
 
 
 if __name__ == '__main__':
@@ -184,13 +204,13 @@ if __name__ == '__main__':
     tetric = '0'
     b = False
 
-    Border(100, 100, 100, 50)
-    Border(5, WINDOW_HEIGHT - 5, WINDOW_WIDTH - 5, WINDOW_HEIGHT - 5)
-    Border(5, 5, 5, WINDOW_HEIGHT - 5)
-    Border(WINDOW_WIDTH - 5, 5, WINDOW_WIDTH - 5, WINDOW_HEIGHT - 5)
-    Border(WINDOW_WIDTH // 3, WINDOW_HEIGHT // 3, WINDOW_WIDTH // 3 * 2, WINDOW_HEIGHT // 3 * 2)
+    Border(0, 0, WINDOW_WIDTH, 15)
+    Border(0, 0, 15, WINDOW_HEIGHT)
+    Border(0, WINDOW_WIDTH - 15, WINDOW_WIDTH, 15)
+    Border(WINDOW_HEIGHT - 15, 0, 15, WINDOW_HEIGHT)
+    Border(WINDOW_HEIGHT - 15, 0, 15, WINDOW_HEIGHT)
 
-    trace = (5, 0)
+    trace = (10, 0)
 
     while running:
         for event in pygame.event.get():
@@ -210,24 +230,24 @@ if __name__ == '__main__':
                 if event.key == pygame.K_RIGHT:
                     tetric.rotate_RIGHT()
                     trace = (5, 0)
-                    tetric.move(trace[0], trace[1])
+                    # tetric.move(trace[0], trace[1])
                 if event.key == pygame.K_LEFT:
                     tetric.rotate_LEFT()
                     trace = (- 5, 0)
-                    tetric.move(trace[0], trace[1])
+                    # tetric.move(trace[0], trace[1])
 
                 if event.key == pygame.K_DOWN:
                     trace = (0, 5)
-                    tetric.move(trace[0], trace[1])
+                    # tetric.move(trace[0], trace[1])
                     tetric.rotate_DOWN()
 
                 if event.key == pygame.K_UP:
                     trace = (0, - 5)
-                    tetric.move(trace[0], trace[1])
+                    # tetric.move(trace[0], trace[1])
                     tetric.rotate_UP()
                 if event.key == pygame.K_SPACE:
                     all_sprites.update()
-        # all_sprites.update()
+        all_sprites.update()
         screen.fill('black')
         all_sprites.draw(screen)
         pygame.display.flip()
