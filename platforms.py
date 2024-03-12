@@ -87,6 +87,12 @@ class Pacman(pygame.sprite.Sprite):
         # self.rect = pygame.Rect(x, y, 20, 20)
         self.spawn(x, y)
 
+    def teleport(self):
+        if self.rect.x > WINDOW_WIDTH + p_width:
+            self.rect.x = - p_width
+        if self.rect.x < - p_width:
+            self.rect.x = WINDOW_WIDTH + p_width
+
     def move(self, x, y):
         self.rect.x += x
         self.rect.y += y
@@ -224,6 +230,7 @@ if __name__ == '__main__':
                     player.rotate_UP()
                 if event.key == pygame.K_SPACE:
                     all_sprites.update()
+        player.teleport()
         all_sprites.update()
         screen.fill('black')
         all_sprites.draw(screen)
