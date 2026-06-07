@@ -8,6 +8,14 @@ from settings import (
     WINDOW_SIZE, TIMER_EVENT_TYPE, TIMER_DELAY, FPS,
     load_level
 )
+
+# Инициализируем pygame и создаём окно ДО импорта sprites,
+# потому что sprites.py загружает изображения при импорте,
+# а .convert_alpha() требует инициализированный дисплей
+pygame.init()
+pygame.display.set_caption('Pac-Man')
+screen = pygame.display.set_mode(WINDOW_SIZE)
+
 from sprites import (
     all_sprites, generate_level
 )
@@ -15,9 +23,6 @@ from sprites import (
 
 def main():
     """Основная функция — запускает игру."""
-    pygame.init()
-    pygame.display.set_caption('Pac-Man')
-    screen = pygame.display.set_mode(WINDOW_SIZE)
     clock = pygame.time.Clock()
 
     # загружаем уровень и создаём объекты

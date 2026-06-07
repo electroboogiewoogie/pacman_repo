@@ -38,7 +38,7 @@ def load_image(name):
     if not os.path.isfile(fullname):
         print(f"Файл с изображением '{fullname}' не найден")
         sys.exit()
-    image = pygame.image.load(fullname)
+    image = pygame.image.load(fullname).convert_alpha()
     return image
 
 
