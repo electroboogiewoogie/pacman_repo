@@ -27,7 +27,16 @@ FPS = 60
 GHOST_SPEED_CHASE = 2      # в chase — такой же как у Пакмэна (должен делить TILE_WIDTH)
 GHOST_SPEED_SCATTER = 2    # в scatter — такой же (ИИ делает их "тупее")
 GHOST_SPEED_FRIGHTENED = 1 # в frightened — медленнее (1 делит 30)
+GHOST_SPEED_EATEN = 5      # съеденный призрак быстро бежит домой (5 делит 30)
 GHOST_FRIGHTENED_DURATION = 6  # секунд в frightened-режиме
+
+# Задержки выхода из базы (в секундах). Blinky = 0, сразу на поле.
+GHOST_EXIT_DELAYS = {
+    'red': 0,
+    'pink': 3,
+    'blue': 6,
+    'orange': 9,
+}
 
 # Волновой алгоритм scatter/chase для уровня 1 (в секундах)
 # (режим, длительность). Последний chase — бесконечный.

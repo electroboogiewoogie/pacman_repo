@@ -10,7 +10,8 @@ from settings import (
     PLAYER_SPEED, TIMER_EVENT_TYPE, TIMER_DELAY,
     WINDOW_WIDTH, WINDOW_HEIGHT, load_image,
     GHOST_SPEED_CHASE, GHOST_SPEED_SCATTER, GHOST_SPEED_FRIGHTENED,
-    GHOST_FRIGHTENED_DURATION, SCATTER_CORNERS, WAVE_TIMINGS, FPS
+    GHOST_SPEED_EATEN, GHOST_FRIGHTENED_DURATION, SCATTER_CORNERS,
+    WAVE_TIMINGS, FPS, GHOST_EXIT_DELAYS
 )
 
 def scale_image(image, target_size):
@@ -56,8 +57,17 @@ ghost_images = {
     'pink': base_pink_ghost,                                   # Pinky
     'blue': recolor_ghost(base_pink_ghost, (0, 255, 255)),     # Inky
     'orange': recolor_ghost(base_pink_ghost, (255, 165, 0)),   # Clyde
-    'frightened': scale_image(load_image('frightened_ghost.png'), TILE_WIDTH)
+    'frightened': pygame.transform.scale(load_image('frightened_ghost.png'), (TILE_WIDTH, TILE_HEIGHT)),
 }
+
+# Спрайт глаз для съеденного призрака (прозрачный фон + белые глаза с синими зрачками)
+eaten_ghost_image = pygame.Surface((TILE_WIDTH, TILE_HEIGHT), pygame.SRCALPHA)
+# левый глаз
+pygame.draw.ellipse(eaten_ghost_image, (255, 255, 255), (6, 8, 8, 10))
+pygame.draw.ellipse(eaten_ghost_image, (50, 50, 180), (8, 12, 4, 5))
+# правый глаз
+pygame.draw.ellipse(eaten_ghost_image, (255, 255, 255), (16, 8, 8, 10))
+pygame.draw.ellipse(eaten_ghost_image, (50, 50, 180), (18, 12, 4, 5))
 
 point_image = pygame.transform.scale(load_image('point.png'), (6, 6))
 
@@ -233,7 +243,10 @@ class Pacman(Player):
 # ===================== Ghost (базовое привидение) =====================
 class Ghost(Player):
     """Базовый класс привидения с логикой выбора направления на перекрёстках.
-    Поддерживает режимы: 'chase', 'scatter', 'frightened'."""
+    Поддерживает режимы: 'chase', 'scatter', 'frightened', 'eaten', 'in_house'."""
+
+    # Позиция базы (устанавливается в generate_level)
+    ghost_house_pos = None
 
     def __init__(self, x, y, ghost_type, pacman, blinky=None):
         self.normal_image = ghost_images.get(ghost_type, ghost_images['red'])
@@ -242,14 +255,23 @@ class Ghost(Player):
         self.ghost_type = ghost_type
         self.pacman = pacman
         self.blinky = blinky
+        self.spawn_x = x
+        self.spawn_y = y
         self.rect = self.image.get_rect(topleft=(x, y))
-        self.speed = GHOST_SPEED_SCATTER  # начинаем в scatter
+        self.speed = GHOST_SPEED_SCATTER
         self.dx = -self.speed
         self.dy = 0
         # режим и волновой таймер
         self.mode = 'scatter'
         self.mode_before_frightened = 'scatter'
         self.frightened_timer = 0
+        # задержка выхода из базы
+        exit_delay_sec = GHOST_EXIT_DELAYS.get(ghost_type, 0)
+        self.exit_timer = exit_delay_sec * FPS
+        if self.exit_timer > 0:
+            self.mode = 'in_house'
+            self.dx = 0
+            self.dy = 0
 
     def set_mode(self, mode):
         """Переключает режим привидения. При смене режима привидение разворачивается."""
@@ -272,6 +294,8 @@ class Ghost(Player):
 
     def enter_frightened(self):
         """Вход в frightened-режим (при съедении power pellet)."""
+        if self.mode in ('eaten', 'in_house'):
+            return  # съеденный/в доме не может испугаться
         if self.mode != 'frightened':
             self.mode_before_frightened = self.mode
         self.set_mode('frightened')
@@ -279,6 +303,22 @@ class Ghost(Player):
     def exit_frightened(self):
         """Выход из frightened-режима, возврат к предыдущему."""
         self.set_mode(self.mode_before_frightened)
+
+    def get_eaten(self):
+        """Призрак съеден Пакмэном. Превращается в глаза и бежит на базу."""
+        self.mode = 'eaten'
+        self.speed = GHOST_SPEED_EATEN
+        self.image = eaten_ghost_image
+
+    def respawn(self):
+        """Возрождение на базе. Возвращает нормальный режим."""
+        self.rect.x = self.spawn_x
+        self.rect.y = self.spawn_y
+        self.image = self.normal_image
+        self.mode = self.mode_before_frightened
+        self.speed = GHOST_SPEED_SCATTER if self.mode == 'scatter' else GHOST_SPEED_CHASE
+        self.dx = -self.speed
+        self.dy = 0
 
     def is_on_tile(self):
         """Проверяет, находится ли привидение точно в ячейке сетки."""
@@ -354,11 +394,33 @@ class Ghost(Player):
 
     def update(self):
         """Обновление привидения."""
+        # задержка выхода из базы
+        if self.mode == 'in_house':
+            self.exit_timer -= 1
+            if self.exit_timer <= 0:
+                self.mode = 'scatter'
+                self.speed = GHOST_SPEED_SCATTER
+                self.dx = -self.speed
+                self.dy = 0
+            return  # не двигаемся пока в доме
+
         # таймер frightened
         if self.mode == 'frightened':
             self.frightened_timer -= 1
             if self.frightened_timer <= 0:
                 self.exit_frightened()
+
+        # съеденный призрак бежит на базу
+        if self.mode == 'eaten':
+            target = (self.spawn_x, self.spawn_y)
+            if self.is_on_tile():
+                self.choose_direction(target)
+            self.rect.x += self.dx
+            self.rect.y += self.dy
+            # проверяем, добрался ли до базы
+            if abs(self.rect.x - self.spawn_x) < self.speed and abs(self.rect.y - self.spawn_y) < self.speed:
+                self.respawn()
+            return
 
         if self.is_on_tile():
             target = self.get_target()

@@ -123,8 +123,18 @@ def main():
         # проверяем столкновение Пакмэна с привидениями
         ghost_hit = player.check_ghost_collision()
         if ghost_hit:
-            print("Game Over! Пакмэна поймало привидение!")
-            running = False
+            if ghost_hit.mode == 'frightened':
+                # Пакмэн ест испуганного призрака: +200 очков, призрак бежит домой
+                score += 200
+                ghost_hit.get_eaten()
+                ghost_hit = None  # не game over
+            elif ghost_hit.mode in ('eaten', 'in_house'):
+                # столкновение с глазами / призраком в доме — игнорируем
+                ghost_hit = None
+            else:
+                # нормальный призрак — game over
+                print("Game Over! Пакмэна поймало привидение!")
+                running = False
             
         # проверяем условие победы (все точки и pellets собраны)
         if len(points_group) == 0 and len(pellets_group) == 0:
