@@ -160,8 +160,10 @@ def main():
         game_over_img = pygame.transform.scale(load_image('gameover.png'), WINDOW_SIZE)
         screen.blit(game_over_img, (0, 0))
     else:
-        win_text = font.render("YOU WIN!", True, (0, 255, 0))
-        screen.blit(win_text, (WINDOW_WIDTH // 2 - 50, WINDOW_HEIGHT // 2))
+        # win_text = font.render("YOU WIN!", True, (0, 255, 0))
+        winner_img = pygame.transform.scale(load_image('you_won!.jpeg'), WINDOW_SIZE)
+        screen.blit(winner_img, (0, 0)) 
+        # screen.blit(win_text, (WINDOW_WIDTH // 2 - 50, WINDOW_HEIGHT // 2))
         
     pygame.display.flip()
     pygame.time.wait(3000)
