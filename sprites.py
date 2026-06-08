@@ -21,6 +21,16 @@ def scale_image(image, target_size):
     new_size = (int(w * ratio), int(h * ratio))
     return pygame.transform.smoothscale(image, new_size)
 
+def load_ghost_sprite(name):
+    """Загружает спрайт призрака, обрезает пустоты по краям и масштабирует до 24x24."""
+    img = load_image(name)
+    bbox = img.get_bounding_rect()
+    cropped = img.subsurface(bbox)
+    scaled = pygame.transform.smoothscale(cropped, (24, 24))
+    final = pygame.Surface((TILE_WIDTH, TILE_HEIGHT), pygame.SRCALPHA)
+    final.blit(scaled, (3, 3))
+    return final
+
 def recolor_ghost(image, target_color):
     """Перекрашивает розового призрака в target_color. Вызывать после scale!"""
     new_image = image.copy()
@@ -49,15 +59,15 @@ pacman_images = {
     'fed': pygame.transform.scale(load_image('fed_pacman.png'), (PLAYER_WIDTH, PLAYER_HEIGHT)),
 }
 
-# базовое изображение розового призрака, смасштабированное до 30x30
-base_pink_ghost = pygame.transform.scale(load_image('pink_left.png'), (TILE_WIDTH, TILE_HEIGHT))
+# базовое изображение розового призрака, смасштабированное и отцентрованное
+base_pink_ghost = load_ghost_sprite('pink_left.png')
 
 ghost_images = {
     'red': recolor_ghost(base_pink_ghost, (255, 0, 0)),        # Blinky
     'pink': base_pink_ghost,                                   # Pinky
     'blue': recolor_ghost(base_pink_ghost, (0, 255, 255)),     # Inky
     'orange': recolor_ghost(base_pink_ghost, (255, 165, 0)),   # Clyde
-    'frightened': pygame.transform.scale(load_image('frightened_ghost.png'), (TILE_WIDTH, TILE_HEIGHT)),
+    'frightened': load_ghost_sprite('frightened_ghost.png'),
 }
 
 # Спрайт глаз для съеденного призрака (прозрачный фон + белые глаза с синими зрачками)
