@@ -20,13 +20,35 @@ PLAYER_WIDTH = 20
 PLAYER_HEIGHT = 20
 
 # ===================== Игровые параметры =====================
-PLAYER_SPEED = 2
+PLAYER_SPEED = 2.2
 TIMER_EVENT_TYPE = 30
 TIMER_DELAY = 40
 FPS = 60
-GHOST_SPEED_CHASE = 1.8    # 90% от Пакмэна — чуть медленнее
-GHOST_SPEED_SCATTER = 1.6  # 80% — в scatter ещё медленнее
-GHOST_SPEED_FRIGHTENED = 1 # 50% — в панике самые медленные
+GHOST_SPEED_CHASE = 2      # в chase — такой же как у Пакмэна (должен делить TILE_WIDTH)
+GHOST_SPEED_SCATTER = 2    # в scatter — такой же (ИИ делает их "тупее")
+GHOST_SPEED_FRIGHTENED = 1 # в frightened — медленнее (1 делит 30)
+GHOST_FRIGHTENED_DURATION = 6  # секунд в frightened-режиме
+
+# Волновой алгоритм scatter/chase для уровня 1 (в секундах)
+# (режим, длительность). Последний chase — бесконечный.
+WAVE_TIMINGS = [
+    ('scatter', 7),
+    ('chase', 20),
+    ('scatter', 7),
+    ('chase', 20),
+    ('scatter', 5),
+    ('chase', 20),
+    ('scatter', 5),
+    ('chase', None),  # бесконечный chase
+]
+
+# Углы scatter для каждого типа призрака
+SCATTER_CORNERS = {
+    'red':    (WINDOW_WIDTH, 0),              # правый верхний
+    'pink':   (0, 0),                          # левый верхний
+    'blue':   (WINDOW_WIDTH, WINDOW_HEIGHT),   # правый нижний
+    'orange': (0, WINDOW_HEIGHT),              # левый нижний
+}
 
 # ===================== Пути к ресурсам =====================
 BASE_DIR = os.path.dirname(__file__)

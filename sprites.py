@@ -4,10 +4,13 @@
 """
 
 import pygame
+import random
 from settings import (
     TILE_WIDTH, TILE_HEIGHT, PLAYER_WIDTH, PLAYER_HEIGHT,
     PLAYER_SPEED, TIMER_EVENT_TYPE, TIMER_DELAY,
-    WINDOW_WIDTH, WINDOW_HEIGHT, load_image
+    WINDOW_WIDTH, WINDOW_HEIGHT, load_image,
+    GHOST_SPEED_CHASE, GHOST_SPEED_SCATTER, GHOST_SPEED_FRIGHTENED,
+    GHOST_FRIGHTENED_DURATION, SCATTER_CORNERS, WAVE_TIMINGS, FPS
 )
 
 def scale_image(image, target_size):
@@ -56,7 +59,11 @@ ghost_images = {
     'frightened': scale_image(load_image('frightened_ghost.png'), TILE_WIDTH)
 }
 
-point_image = pygame.transform.scale(load_image('point.png'), (10, 10))
+point_image = pygame.transform.scale(load_image('point.png'), (6, 6))
+
+# Большая точка (power pellet) — мигающий жёлтый круг 16x16
+power_pellet_image = pygame.Surface((16, 16), pygame.SRCALPHA)
+pygame.draw.circle(power_pellet_image, (255, 255, 100), (8, 8), 8)
 
 # ===================== Группы спрайтов =====================
 # Инициализируются на уровне модуля, чтобы классы могли
@@ -66,16 +73,38 @@ tiles_group = pygame.sprite.Group()
 player_group = pygame.sprite.Group()
 ghosts_group = pygame.sprite.Group()
 points_group = pygame.sprite.Group()
+pellets_group = pygame.sprite.Group()
 
 # ===================== Point (точка) =====================
 class Point(pygame.sprite.Sprite):
-    """Точка для сбора. Даёт очки."""
+    """Маленькая точка для сбора. Даёт 10 очков."""
     def __init__(self, pos_x, pos_y):
         super().__init__(points_group, all_sprites)
         self.image = point_image
         self.rect = self.image.get_rect()
         self.rect.centerx = pos_x * TILE_WIDTH + TILE_WIDTH // 2
         self.rect.centery = pos_y * TILE_HEIGHT + TILE_HEIGHT // 2
+
+
+# ===================== PowerPellet (большая точка) =====================
+class PowerPellet(pygame.sprite.Sprite):
+    """Большая точка (power pellet). При съедении привидения входят в frightened.
+    Даёт 50 очков."""
+    def __init__(self, pos_x, pos_y):
+        super().__init__(pellets_group, all_sprites)
+        self.image = power_pellet_image
+        self.rect = self.image.get_rect()
+        self.rect.centerx = pos_x * TILE_WIDTH + TILE_WIDTH // 2
+        self.rect.centery = pos_y * TILE_HEIGHT + TILE_HEIGHT // 2
+        self.blink_timer = 0
+
+    def update(self):
+        """Мигание каждые 15 кадров."""
+        self.blink_timer += 1
+        if self.blink_timer % 30 < 15:
+            self.image = power_pellet_image
+        else:
+            self.image = pygame.Surface((16, 16), pygame.SRCALPHA)  # прозрачный
 
 
 # ===================== Tile (стена) =====================
@@ -203,26 +232,75 @@ class Pacman(Player):
 
 # ===================== Ghost (базовое привидение) =====================
 class Ghost(Player):
-    """Базовый класс привидения с логикой выбора направления на перекрёстках."""
+    """Базовый класс привидения с логикой выбора направления на перекрёстках.
+    Поддерживает режимы: 'chase', 'scatter', 'frightened'."""
 
     def __init__(self, x, y, ghost_type, pacman, blinky=None):
-        self.image = ghost_images.get(ghost_type, ghost_images['red'])
+        self.normal_image = ghost_images.get(ghost_type, ghost_images['red'])
+        self.image = self.normal_image
         Player.__init__(self, x, y, ghosts_group, player_group, all_sprites)
         self.ghost_type = ghost_type
         self.pacman = pacman
         self.blinky = blinky
         self.rect = self.image.get_rect(topleft=(x, y))
-        self.speed = 2 # скорость должна делить TILE_WIDTH без остатка
-        self.dx = -self.speed # по умолчанию идём влево
+        self.speed = GHOST_SPEED_SCATTER  # начинаем в scatter
+        self.dx = -self.speed
         self.dy = 0
+        # режим и волновой таймер
+        self.mode = 'scatter'
+        self.mode_before_frightened = 'scatter'
+        self.frightened_timer = 0
+
+    def set_mode(self, mode):
+        """Переключает режим привидения. При смене режима привидение разворачивается."""
+        old_mode = self.mode
+        self.mode = mode
+        if mode == 'chase':
+            self.speed = GHOST_SPEED_CHASE
+            self.image = self.normal_image
+        elif mode == 'scatter':
+            self.speed = GHOST_SPEED_SCATTER
+            self.image = self.normal_image
+        elif mode == 'frightened':
+            self.speed = GHOST_SPEED_FRIGHTENED
+            self.image = ghost_images['frightened']
+            self.frightened_timer = GHOST_FRIGHTENED_DURATION * FPS
+        # при смене режима привидение разворачивается
+        if old_mode != mode:
+            self.dx = -self.dx
+            self.dy = -self.dy
+
+    def enter_frightened(self):
+        """Вход в frightened-режим (при съедении power pellet)."""
+        if self.mode != 'frightened':
+            self.mode_before_frightened = self.mode
+        self.set_mode('frightened')
+
+    def exit_frightened(self):
+        """Выход из frightened-режима, возврат к предыдущему."""
+        self.set_mode(self.mode_before_frightened)
 
     def is_on_tile(self):
         """Проверяет, находится ли привидение точно в ячейке сетки."""
         return self.rect.x % TILE_WIDTH == 0 and self.rect.y % TILE_HEIGHT == 0
 
-    def get_target(self):
-        """Возвращает целевую точку (x, y). Переопределяется в подклассах."""
+    def get_scatter_target(self):
+        """Возвращает угол scatter для этого типа призрака."""
+        return SCATTER_CORNERS.get(self.ghost_type, (0, 0))
+
+    def get_chase_target(self):
+        """Возвращает целевую точку chase. Переопределяется в подклассах."""
         return self.pacman.rect.centerx, self.pacman.rect.centery
+
+    def get_target(self):
+        """Возвращает целевую точку в зависимости от текущего режима."""
+        if self.mode == 'scatter':
+            return self.get_scatter_target()
+        elif self.mode == 'frightened':
+            # в frightened — случайное направление
+            return None
+        else:  # chase
+            return self.get_chase_target()
 
     def choose_direction(self, target):
         """Выбирает направление движения на перекрёстке по дистанции до target."""
@@ -253,6 +331,11 @@ class Ghost(Player):
                 available.append(opposite)
             else:
                 return
+        
+        # в frightened режиме выбираем случайно
+        if target is None:
+            self.dx, self.dy = random.choice(available)
+            return
                 
         best_direction = available[0]
         best_distance = float('inf')
@@ -271,6 +354,12 @@ class Ghost(Player):
 
     def update(self):
         """Обновление привидения."""
+        # таймер frightened
+        if self.mode == 'frightened':
+            self.frightened_timer -= 1
+            if self.frightened_timer <= 0:
+                self.exit_frightened()
+
         if self.is_on_tile():
             target = self.get_target()
             self.choose_direction(target)
@@ -286,7 +375,7 @@ class Blinky(Ghost):
     def __init__(self, x, y, pacman):
         super().__init__(x, y, 'red', pacman)
         
-    def get_target(self):
+    def get_chase_target(self):
         return self.pacman.rect.centerx, self.pacman.rect.centery
 
 
@@ -295,7 +384,7 @@ class Pinky(Ghost):
     def __init__(self, x, y, pacman):
         super().__init__(x, y, 'pink', pacman)
         
-    def get_target(self):
+    def get_chase_target(self):
         speed = self.pacman.speed if self.pacman.speed != 0 else 1
         dx_tiles = (self.pacman.dx / speed) * TILE_WIDTH * 4
         dy_tiles = (self.pacman.dy / speed) * TILE_HEIGHT * 4
@@ -307,14 +396,13 @@ class Inky(Ghost):
     def __init__(self, x, y, pacman, blinky):
         super().__init__(x, y, 'blue', pacman, blinky)
         
-    def get_target(self):
+    def get_chase_target(self):
         speed = self.pacman.speed if self.pacman.speed != 0 else 1
         pivot_x = self.pacman.rect.centerx + (self.pacman.dx / speed) * TILE_WIDTH * 2
         pivot_y = self.pacman.rect.centery + (self.pacman.dy / speed) * TILE_HEIGHT * 2
         
         if self.blinky:
             bx, by = self.blinky.rect.centerx, self.blinky.rect.centery
-            # вектор от Blinky до pivot умножаем на 2
             tx = pivot_x + (pivot_x - bx)
             ty = pivot_y + (pivot_y - by)
             return tx, ty
@@ -326,12 +414,12 @@ class Clyde(Ghost):
     def __init__(self, x, y, pacman):
         super().__init__(x, y, 'orange', pacman)
         
-    def get_target(self):
+    def get_chase_target(self):
         dist_sq = (self.rect.centerx - self.pacman.rect.centerx)**2 + (self.rect.centery - self.pacman.rect.centery)**2
         if dist_sq > (8 * TILE_WIDTH)**2:
             return self.pacman.rect.centerx, self.pacman.rect.centery
         else:
-            return 0, WINDOW_HEIGHT  # нижний левый угол
+            return SCATTER_CORNERS['orange']
 
 
 # ===================== Генерация уровня =====================
@@ -352,6 +440,8 @@ def generate_level(level):
             char = level[y][x]
             if char == '.':
                 Point(x, y)
+            elif char == 'O':
+                PowerPellet(x, y)
             elif char == '#':
                 Tile('wall', x, y)
             elif char == 'b':
