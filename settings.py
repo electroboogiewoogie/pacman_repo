@@ -20,13 +20,16 @@ PLAYER_WIDTH = 20
 PLAYER_HEIGHT = 20
 
 # ===================== Игровые параметры =====================
-PLAYER_SPEED = 5
+PLAYER_SPEED = 2
 TIMER_EVENT_TYPE = 30
-TIMER_DELAY = 100
-FPS = 20
+TIMER_DELAY = 40
+FPS = 60
+GHOST_SPEED_CHASE = 1.8    # 90% от Пакмэна — чуть медленнее
+GHOST_SPEED_SCATTER = 1.6  # 80% — в scatter ещё медленнее
+GHOST_SPEED_FRIGHTENED = 1 # 50% — в панике самые медленные
 
 # ===================== Пути к ресурсам =====================
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+BASE_DIR = os.path.dirname(__file__)
 DATA_DIR = os.path.join(BASE_DIR, 'data')
 
 
